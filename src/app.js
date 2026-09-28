@@ -1,41 +1,35 @@
 const express = require("express");
+const connectDB = require("./config/database");
+const User = require("./models/user");
 
 const app = express();
 
-const {adminAuth, userAuth} = require("./middlewares/auth");
+app.post("/signup", async (req, res) => {
 
-app.use("/admin", adminAuth);
+    // creating a new instance of user model
+    const user = new User({
+        firstName: "Tarneet",
+        lastName: "Singh",
+        emailId: "tarneet@gmail.com",
+        password: "tarneet@123"
+    });
 
-app.get("/admin/getAllUsers", (req,res) => {
-    res.send("All data sent");
-});
-
-app.delete("/admin/deleteUser", (req,res) => {
-    res.send("Deleted a user");
-});
-
-
-app.get("/users",userAuth, (req,res) => {
-    res.send("Users api called");
-});
-
-// Handling errors
-app.get("/getUsers",userAuth, (req,res) => {
     try {
-        // Logic to get data from db
-        throw new Error("ddfddffdwwww");
-    } catch(err) {
-        res.status(500).send("Some error contact support team");
+        await user.save();
+        res.send("User added successfully!");
+    } catch (err) {
+        res.status(400).send("Error saving the user: "+ err.message);
     }
-});
-
-app.use("/", (err, req, res, next) => {
-    if(err) {
-        res.status(500).send("Something went wrong");
-    }
-});
 
 
-app.listen(4004, () => {
-    console.log("Server listening at port 4004...")
+})
+
+connectDB()
+.then(() => {
+    console.log("Database connection established...");
+    app.listen(4004, () => {
+        console.log("Server listening at port 4004...")
+    });
+}).catch((err) => {
+    console.error("Database cannot be connected");
 });
