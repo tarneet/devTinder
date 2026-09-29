@@ -23,11 +23,47 @@ app.post("/signup", async (req, res) => {
         await user.save();
         res.send("User added successfully!");
     } catch (err) {
-        res.status(400).send("Error saving the user: "+ err.message);
+        res.status(400).send("Something went wrong!");
     }
 
 
-})
+});
+
+// get all users from db
+app.get("/feed", async (req, res) => {
+    try {
+        const users = await User.find({});
+        res.send(users);
+    } catch (err) {
+        res.status(400).send("Something went wrong!");
+    }
+
+});
+
+
+// delete user
+app.delete("/user", async (req, res) => {
+    try {
+        const userId = req.body.userId;
+        await User.findByIdAndDelete(userId);
+        res.send("User deleted successfully");
+    } catch (err) {
+        res.status(400).send("Something went wrong!");
+    }
+
+});
+
+// update user
+app.patch("/user", async (req, res) => {
+    try {
+        const userId = req.body.userId;
+        const user = await User.findByIdAndUpdate(userId, req.body, {returnDocument: "after"});
+        res.send(user);
+    } catch (err) {
+        res.status(400).send("Something went wrong!");
+    }
+
+});
 
 connectDB()
 .then(() => {
