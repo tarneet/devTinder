@@ -1,6 +1,8 @@
 const express = require("express");
 const connectDB = require("./config/database");
 const User = require("./models/user");
+const {validateSignUpData} = require("./utils/validation");
+const bcrypt = require("bcrypt");
 
 const app = express();
 
@@ -10,20 +12,59 @@ app.post("/signup", async (req, res) => {
 
     try {
 
-        // creating a new instance of user model
-        const user = new User(req.body);
+        validateSignUpData(req);
 
-        // const user = new User({
-        //     firstName: req.body.firstName,
-        //     lastName: req.body.lastName,
-        //     emailId: req.body.emailId,
-        //     password: req.body.password,
-        // });
+        const { firstName, lastName, emailId, password } = req.body;
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // creating a new instance of user model
+
+        const user = new User({
+            firstName,
+            lastName,
+            emailId,
+            password: hashedPassword,
+        });
 
         await user.save();
         res.send("User added successfully!");
     } catch (err) {
-        res.status(400).send("Something went wrong!");
+
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
+    }
+
+
+});
+
+
+app.post("/login", async (req, res) => {
+
+    try {
+        const {email, password} = req.body;
+
+        const user = await User.findOne({emailId: email});
+
+        if(!user) {
+            return res.status(400).send("Incorrect email/password");
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return res.status(400).send("Incorrect email/password");
+        }
+
+        res.send("Login Successful!!!");
+
+    } catch (err) {
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
     }
 
 
@@ -35,7 +76,10 @@ app.get("/feed", async (req, res) => {
         const users = await User.find({});
         res.send(users);
     } catch (err) {
-        res.status(400).send("Something went wrong!");
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
     }
 
 });
@@ -48,7 +92,10 @@ app.delete("/user", async (req, res) => {
         await User.findByIdAndDelete(userId);
         res.send("User deleted successfully");
     } catch (err) {
-        res.status(400).send("Something went wrong!");
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
     }
 
 });
@@ -78,7 +125,10 @@ app.patch("/user/:userId", async (req, res) => {
         });
         res.send(user);
     } catch (err) {
-        res.status(400).send("Update Failed: " + err.message);
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
     }
 
 });
