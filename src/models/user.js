@@ -40,7 +40,12 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: "This is the default description about the user"
         },
-        skills: {type: [String]}
+        skills: {
+            type: [String],
+            validate(value) {
+                return value.length <= 5
+            }
+        }
 
     },
     {
