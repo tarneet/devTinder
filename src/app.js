@@ -3,10 +3,14 @@ const connectDB = require("./config/database");
 const User = require("./models/user");
 const {validateSignUpData} = require("./utils/validation");
 const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+const {userAuth} = require("./middlewares/auth");
 
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.post("/signup", async (req, res) => {
 
@@ -58,6 +62,8 @@ app.post("/login", async (req, res) => {
             return res.status(400).send("Incorrect email/password");
         }
 
+        const token = await jwt.sign({_id: user._id}, "Dev@tinder_secret798");
+        res.cookie("token", token);
         res.send("Login Successful!!!");
 
     } catch (err) {
@@ -67,6 +73,22 @@ app.post("/login", async (req, res) => {
         res.status(500).send("Something went wrong");
     }
 
+
+});
+
+
+app.get("/profile", userAuth, async (req, res) => {
+
+    try {
+        const user = req.user;
+        res.send(user);
+
+    } catch (err) {
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
+    }
 
 });
 
