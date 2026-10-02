@@ -1,5 +1,6 @@
 const express = require("express");
 const {userAuth} = require("../middlewares/auth");
+const {validateUserProfileData} = require("../utils/validation");
 const router = express.Router();
 
 router.get("/profile", userAuth, async (req, res) => {
@@ -48,37 +49,28 @@ router.get("/profile", userAuth, async (req, res) => {
 // });
 
 // // update user
-// router.patch("/user/:userId", async (req, res) => {
-//     try {
+router.patch("/user/:userId", userAuth, async (req, res) => {
+    try {
 
-//         const userId = req.params?.userId;
-//         const data = req.body;
+        if(!validateUserProfileData(req)) {
+            throw new Error("Invalid Edit request");
+        }
 
-//         const ALLOWED_UPDATE = [
-//             "firstName", "lastName", "age", "gender", "skills", "photoUrl", "about"
-//         ];
+        const loggedInUser = req.user;
 
-//         const isUpdateAllowed = Object.keys(data).every((k) =>
-//             ALLOWED_UPDATE.includes(k)
-//         );
+        Object.keys(req.body).forEach((key) => (loggedInUser[key] = req.body[key]));
 
-//         if(!isUpdateAllowed) {
-//             throw new Error("Update not allowed");
-//         }
+        await loggedInUser.save();
 
-//         const user = await User.findByIdAndUpdate(userId, data, {
-//             returnDocument: "after",
-//             runValidators: true    //   run validations(if any)
-//         });
-//         res.send(user);
-//     } catch (err) {
-//         if (err.name === "Error") {
-//             return res.status(400).send(err.message);
-//         }
-//         res.status(500).send("Something went wrong");
-//     }
+        res.json({message: "Profile updated successfully", data: loggedInUser});
+    } catch (err) {
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
+    }
 
-// });
+});
 
 
 module.exports = router;
