@@ -1,11 +1,61 @@
 const express = require("express");
 const {userAuth} = require("../middlewares/auth");
+const User = require("../models/user");
+const ConnectionRequest = require("../models/connectionRequest");
 
 const router = express.Router();
 
-router.post("/sendConnectionRequest", userAuth, (req, res) => {
-    const user = req.user;
-    res.send("Connection request sent by " + user.firstName);
+router.post("/request/send/:status/:toUserId", userAuth, async (req, res) => {
+
+    try {
+        const status = req.params.status;
+        const toUserId = req.params.toUserId;
+        const fromUserId = req.user._id;
+
+        if (fromUserId.equals(toUserId)) {
+            return res.status(400).json({message: "Invalid request"});
+        }
+
+        const allowedStatus = ["interested", "ignored"];
+
+        if(!allowedStatus.includes(status)) {
+            return res.status(400).json({message: "Invalid status type"});
+        }
+
+        const toUser = await User.findOne({_id: toUserId});
+        if(!toUser) {
+            return res.status(400).json({message: "User does not exists"});
+        }
+
+        const connectionExists = await ConnectionRequest.findOne({
+            $or: [
+                {fromUserId, toUserId},
+                {fromUserId: toUserId, toUserId: fromUserId},
+            ]
+        });
+
+        if (connectionExists) {
+            return res.status(400).json({message: "Connection request already exists"});
+        }
+
+        const connReq = new ConnectionRequest({
+            toUserId: toUserId,
+            fromUserId: fromUserId,
+            status: status
+        });
+
+        const data = await connReq.save();
+        res.json({
+            message: (status === "interested") ? "Connection request sent successfully" : "You ignored the Connection request successfully",
+            data: data
+        });
+
+    } catch(err) {
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
+    }
 });
 
 
