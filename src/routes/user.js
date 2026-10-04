@@ -1,13 +1,58 @@
 const express = require("express");
 const {userAuth} = require("../middlewares/auth");
 const {validateUserProfileData} = require("../utils/validation");
+const User = require("../models/user");
+const ConnectionRequest = require("../models/connectionRequest");
 const router = express.Router();
 
-router.get("/profile", userAuth, async (req, res) => {
+const USER_DATA = ["firstName", "lastName", "skills", "age", "photoUrl"];
+
+router.get("/user/profile", userAuth, async (req, res) => {
 
     try {
         const user = req.user;
         res.send(user);
+
+    } catch (err) {
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
+    }
+
+});
+
+router.get("/user/connections", userAuth, async (req, res) => {
+
+    try {
+        const user = req.user;
+        const connections = await ConnectionRequest.find({
+            $or: [
+                {fromUserId: user._id},
+                {toUserId: user._id}
+            ],
+            status: "accepted"
+        }).select("status").populate("fromUserId", USER_DATA);
+        res.json({data:connections});
+
+    } catch (err) {
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
+    }
+
+});
+
+router.get("/user/requests/recieved", userAuth, async (req, res) => {
+
+    try {
+        const user = req.user;
+        const connections = await ConnectionRequest.find({
+            toUserId: user._id,
+            status: "interested"
+        }).select(["status"]).populate("fromUserId", USER_DATA);
+        res.json({data:connections});
 
     } catch (err) {
         if (err.name === "Error") {
