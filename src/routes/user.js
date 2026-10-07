@@ -32,8 +32,16 @@ router.get("/user/connections", userAuth, async (req, res) => {
                 {toUserId: user._id}
             ],
             status: "accepted"
-        }).select("status").populate("fromUserId", USER_DATA);
-        res.json({data:connections});
+        }).populate("fromUserId", USER_DATA).populate("toUserId", USER_DATA);
+
+        const data = connections.map((row) => {
+            if(row.fromUserId._id.equals(user._id)) {
+                return row.toUserId;
+            }
+            return row.fromUserId;
+        });
+
+        res.json({data});
 
     } catch (err) {
         if (err.name === "Error") {
@@ -48,11 +56,14 @@ router.get("/user/requests/recieved", userAuth, async (req, res) => {
 
     try {
         const user = req.user;
-        const connections = await ConnectionRequest.find({
+        const requests = await ConnectionRequest.find({
             toUserId: user._id,
             status: "interested"
         }).select(["status"]).populate("fromUserId", USER_DATA);
-        res.json({data:connections});
+
+        const data = requests.map((row) => row.fromUserId);
+
+        res.json({data});
 
     } catch (err) {
         if (err.name === "Error") {
@@ -63,19 +74,45 @@ router.get("/user/requests/recieved", userAuth, async (req, res) => {
 
 });
 
-// get all users from db
-// router.get("/feed", async (req, res) => {
-//     try {
-//         const users = await User.find({});
-//         res.send(users);
-//     } catch (err) {
-//         if (err.name === "Error") {
-//             return res.status(400).send(err.message);
-//         }
-//         res.status(500).send("Something went wrong");
-//     }
+router.get("/feed", userAuth, async (req, res) => {
 
-// });
+    try {
+
+        const page = parseInt(req.query.page) || 1;
+        let limit = parseInt(req.query.limit) || 1;
+        limit = limit > 50 ? 50 : limit;
+        const skip = (page-1)*limit;
+
+        const loggedInUser = req.user;
+        const connections = await ConnectionRequest.find({
+            $or: [
+                {fromUserId: loggedInUser._id},
+                {toUserId: loggedInUser._id},
+            ]
+        }).select(["fromUserId", "toUserId"]);
+
+
+        const excludedUserIds = new Set();
+
+        connections.forEach(connection => {
+            excludedUserIds.add(connection.fromUserId.toString());
+            excludedUserIds.add(connection.toUserId.toString());
+        });
+
+        const users = await User.find({
+            _id: { $nin: Array.from(excludedUserIds) }
+        }).select(USER_DATA).skip(skip).limit(limit);
+
+        res.json({users});
+
+    } catch (err) {
+        if (err.name === "Error") {
+            return res.status(400).send(err.message);
+        }
+        res.status(500).send("Something went wrong");
+    }
+
+});
 
 
 // // delete user
